@@ -12,8 +12,27 @@ void AppClass::InitVariables(void)
 	m_v4ClearColor = vector4(REBLACK, 1); // Set the clear color to black
 
 	m_pMeshMngr->LoadModel("Sorted\\WallEye.bto", "WallEye");
+	//m_pMeshMngr->
 
 	fDuration = 1.0f;
+	vertices = std::vector<vector3>();
+	//these points 
+	vertices.push_back(vector3(-4.0f, -2.0f, 5.0f));
+	vertices.push_back(vector3(1.0f, -2.0f, 5.0f));
+	vertices.push_back(vector3(-3.0f, -1.0f, 3.0f));
+	vertices.push_back(vector3(2.0f, -1.0f, 3.0f));
+	vertices.push_back(vector3(-2.0f, 0.0f, 0.0f));
+	vertices.push_back(vector3(3.0f, 0.0f, 0.0f));
+	vertices.push_back(vector3(-1.0f, 1.0f, -3.0f));
+	vertices.push_back(vector3(4.0f, 1.0f, -3.0f));
+	vertices.push_back(vector3(0.0f, 2.0f, -5.0f));
+	vertices.push_back(vector3(5.0f, 2.0f, -5.0f));
+	vertices.push_back(vector3(1.0f, 3.0f, -5.0f));
+
+	sphereMatrices = std::vector<matrix4>();
+	for (int c = 0; c < vertices.size(); c++) {
+		sphereMatrices.push_back(glm::translate(vertices[c]));
+	}
 }
 
 void AppClass::Update(void)
@@ -36,7 +55,18 @@ void AppClass::Update(void)
 #pragma endregion
 
 #pragma region Your Code goes here
-	m_pMeshMngr->SetModelMatrix(IDENTITY_M4, "WallEye");
+	//get the current number of transitions completed, where 1 represents a single transition
+	float transitions = fRunTime / fDuration;
+	//if it's greater than the number of vertices, bring it back within range
+	if (transitions > vertices.size())
+		transitions -= std::floorf(transitions / (vertices.size()))*(vertices.size());
+	//get the vertex to lerp from
+	int first = static_cast<int>(std::floorf(transitions));
+	//and the vertex to lerp to - setting it to 0 if it's outside the range of the list
+	int second = (transitions > vertices.size() - 1) ? 0 : static_cast<int>(std::ceilf(transitions));
+
+	//subtracting first from transition gets a value between 0 and 1 representing the position within the current transition
+	m_pMeshMngr->SetModelMatrix(glm::translate(glm::lerp(vertices[first], vertices[second], transitions - first)), "WallEye");
 #pragma endregion
 
 #pragma region Does not need changes but feel free to change anything here
@@ -57,6 +87,9 @@ void AppClass::Display(void)
 {
 	//clear the screen
 	ClearScreen();
+	for (int c = 0; c < sphereMatrices.size(); c++) {
+		m_pMeshMngr->AddSphereToQueue(sphereMatrices[c]*glm::scale(.3f,.3f,.3f));
+	}
 
 	//Render the grid based on the camera's mode:
 	switch (m_pCameraMngr->GetCameraMode())
@@ -74,7 +107,6 @@ void AppClass::Display(void)
 		m_pMeshMngr->AddGridToQueue(1.0f, REAXIS::XY, REBLUE * 0.75f); //renders the XY grid with a 100% scale
 		break;
 	}
-	
 	m_pMeshMngr->Render(); //renders the render list
 
 	m_pGLSystem->GLSwapBuffers(); //Swaps the OpenGL buffers
